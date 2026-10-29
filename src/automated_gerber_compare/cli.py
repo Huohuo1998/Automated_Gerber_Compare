@@ -12,6 +12,7 @@ from .models import jsonable
 from .service import export_plan, run_comparison
 from .settings import Settings, default_output_directory, load_settings
 from .validation import prepare_comparison
+from .discovery import resolve_settings
 
 
 def parser() -> argparse.ArgumentParser:
@@ -25,6 +26,10 @@ def parser() -> argparse.ArgumentParser:
         cmd.add_argument("--output", type=Path, default=default_output_directory())
         if name != "validate":
             cmd.add_argument("--rcom", help="rcom.exe 路径")
+            cmd.add_argument("--get", dest="get_exe", help="get.exe 路径，默认自动发现")
+            cmd.add_argument("--env-file", help="Valor 安装环境文件，可选")
+            cmd.add_argument("--no-auto-start", action="store_true", help="只连接现有 Valor，不自动启动 get.exe")
+            cmd.add_argument("--startup-timeout", type=float, help="等待 Valor 启动的秒数")
             cmd.add_argument("--database", help="Valor 数据库名称")
             cmd.add_argument("--port", type=int)
             cmd.add_argument("--tolerance", type=float, help="图形比较容差，mil，0.2–10")
@@ -58,7 +63,12 @@ def main(argv: list[str] | None = None) -> int:
             value = getattr(args, source)
             if value is not None:
                 values[dest] = value
-        settings = Settings(**values)
+        for key in ("get_exe", "env_file", "startup_timeout"):
+            if getattr(args, key) is not None:
+                values[key] = getattr(args, key)
+        if args.no_auto_start:
+            values["auto_start_get"] = False
+        settings = resolve_settings(Settings(**values))
         if args.action == "prepare":
             export_plan(prepared, settings)
             print("已生成计划（未调用 Valor）：" + str(prepared.directory / "command_plan.json"))

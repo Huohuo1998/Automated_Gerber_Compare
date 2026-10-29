@@ -84,7 +84,8 @@ a {{color:#225ab4}} details {{margin:18px 0}} footer {{text-align:center;font-si
     report.write_text(content, encoding="utf-8")
     with zipfile.ZipFile(directory / "report_bundle.zip", "w", compression=zipfile.ZIP_DEFLATED) as zf:
         files = [report, directory / "result.json", directory / "validation.json", directory / "command_plan.json",
-                 directory / "commands.txt", directory / "rcom.jsonl", directory / "import.log"]
+                 directory / "commands.txt", directory / "rcom.jsonl", directory / "import.log",
+                 directory / "get_startup.log", directory / "valor_session.json"]
         files.extend(sorted(directory.glob("bounds_*.txt")))
         files.extend(sorted((directory / "images").glob("*")))
         for path in files:

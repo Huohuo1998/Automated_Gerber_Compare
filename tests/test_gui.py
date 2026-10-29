@@ -24,7 +24,7 @@ class GuiSmokeTests(unittest.TestCase):
         exe = self.root / "rcom.exe"
         exe.touch()
         with patch("automated_gerber_compare.gui.load_settings", return_value=Settings(rcom_exe=str(exe), port=41072)):
-            self.app = App()
+            self.app = App(startup=False)
         self.addCleanup(self.app.destroy)
         self.app.withdraw()
         self.app.output.set(str(self.root / "out"))
@@ -77,6 +77,31 @@ class GuiSmokeTests(unittest.TestCase):
         self.choose("B", self.a)
         self.assertIsNone(self.app.prepared)
         self.assertEqual(str(self.app.start_button["state"]), "disabled")
+
+    def test_settings_dialog_and_connection_controls(self):
+        from automated_gerber_compare.gui import SettingsDialog
+        self.assertEqual(str(self.app.session_button["state"]), "normal")
+        self.app.deiconify()
+        self.app.update()
+        dialog = SettingsDialog(self.app)
+        dialog.update_idletasks()
+        self.assertIn("get_exe", dialog.vars)
+        self.assertIn("env_file", dialog.vars)
+        self.assertTrue(dialog.auto_start.get())
+        dialog.destroy()
+
+    def test_discovered_paths_update_ui_without_overwriting_inputs(self):
+        self.choose("A", self.a)
+        self.choose("B", self.a)
+        from dataclasses import replace
+        settings = replace(self.app.settings, auto_start_get=False)
+        self.app.backend_busy = True
+        self.app.events.put(("discovered", (settings, [], "")))
+        self.app.after_cancel(self.app._poll_job)
+        self.app._poll()
+        self.assertFalse(self.app.backend_busy)
+        self.assertEqual(self.app.path_a.get(), str(self.a))
+        self.assertEqual(str(self.app.validate_button["state"]), "normal")
 
 
 if __name__ == "__main__":

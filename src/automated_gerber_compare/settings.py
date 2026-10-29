@@ -23,6 +23,10 @@ def default_output_directory() -> Path:
 @dataclass(frozen=True)
 class Settings:
     rcom_exe: str = ""
+    get_exe: str = ""
+    env_file: str = ""
+    auto_start_get: bool = True
+    startup_timeout: float = 120
     database: str = "eda_server_db"
     port: int = 11000
     command_timeout: float = 3600
@@ -32,6 +36,13 @@ class Settings:
     image_size: int = 2000
 
     def validate(self, require_executable: bool = True) -> None:
+        if type(self.auto_start_get) is not bool:
+            raise ValueError("自动启动选项必须为布尔值")
+        for value in (self.rcom_exe, self.get_exe, self.env_file):
+            if not isinstance(value, str):
+                raise ValueError("Valor 路径必须是文本")
+        if self.env_file and not Path(self.env_file).is_file():
+            raise ValueError("所选 Valor 环境文件不存在，请重新选择或清空此项")
         if not re.fullmatch(r"[a-z0-9_.-]+", self.database):
             raise ValueError("Valor 数据库名称应为小写字母、数字、下划线、点或短横线")
         for name, value, low, high in (
@@ -43,6 +54,7 @@ class Settings:
                 raise ValueError(f"{name} 必须是 {low}–{high} 的整数")
         for name, value, low, high in (
             ("命令超时 (秒)", self.command_timeout, 1, 86400),
+            ("Valor 启动等待 (秒)", self.startup_timeout, 1, 1800),
             ("比较容差 (mil)", self.tolerance_mils, 0.2, 10),
             ("截图外扩 (inch)", self.margin_inch, 0.001, 10),
         ):

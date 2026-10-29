@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import threading
+import shutil
 import uuid
 from dataclasses import asdict
 from datetime import datetime
@@ -16,6 +17,8 @@ from .parsers import check_import_report, decode_output, nonnegative_integer, pa
 from .rcom import Cancelled, EndpointLock, RcomClient, RcomError
 from .report import generate_report, image_mime
 from .settings import Settings
+from .discovery import resolve_settings
+from .session import ValorSession
 from .validation import verify_snapshot, write_json
 
 Progress = Callable[[int, int, str], None]
@@ -45,7 +48,9 @@ def run_comparison(
     settings: Settings,
     cancel: threading.Event | None = None,
     progress: Progress | None = None,
+    session: ValorSession | None = None,
 ) -> RunResult:
+    settings = resolve_settings(settings)
     settings.validate()
     # All static paths/parameters and input snapshots are checked BEFORE touching Valor.
     plan = _checked_plan(prepared, settings)
@@ -78,7 +83,14 @@ def run_comparison(
         with EndpointLock(settings.port):
             try:
                 update("测试 Valor RCOM 连接")
-                client.execute("TST", timeout=min(settings.command_timeout, 15))
+                controller = session or ValorSession()
+                connection = controller.ensure_ready(settings, client, cancel, lambda message: update(message))
+                write_json(directory / "valor_session.json", connection)
+                if connection.startup_log:
+                    source = Path(connection.startup_log)
+                    target = directory / "get_startup.log"
+                    if source.is_file() and source.resolve() != target.resolve():
+                        shutil.copy2(source, target)
                 for lmc in setup_commands(prepared, settings, job):
                     answer = client.execute(lmc)
                     if lmc.startswith("COM create_entity,job=,"):

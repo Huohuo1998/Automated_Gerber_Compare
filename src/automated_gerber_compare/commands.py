@@ -89,6 +89,8 @@ def build_plan(prepared: PreparedComparison, settings: Settings, job: str) -> di
     pairs = prepared.validation.pairs
     return {
         "version": 1, "job": job, "step": "1", "executable": settings.rcom_exe, "port": settings.port,
+        "session": {"get_exe": settings.get_exe, "auto_start": settings.auto_start_get,
+                    "startup_timeout": settings.startup_timeout, "env_file": settings.env_file},
         "note": "${...} 来自实际命令返回/文件；本计划不能当作完整静态脚本直接执行。commands.txt 记录实际执行命令。",
         "runtime_values": {
             "viewport": "x1/y1 为两层 xmin/ymin 的较小值减去 margin；x2/y2 为 xmax/ymax 的较大值加上 margin；单位 inch",

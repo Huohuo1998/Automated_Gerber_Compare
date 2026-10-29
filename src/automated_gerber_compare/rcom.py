@@ -14,6 +14,7 @@ from pathlib import Path
 
 from .parsers import decode_output
 from .settings import Settings
+from .discovery import process_environment
 
 
 class RcomError(RuntimeError):
@@ -86,7 +87,8 @@ class RcomClient:
         try:
             flags = subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0
             process = subprocess.Popen(args, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
-                                       stderr=subprocess.PIPE, shell=False, creationflags=flags)
+                                       stderr=subprocess.PIPE, shell=False, creationflags=flags,
+                                       env=process_environment(self.settings))
             while True:
                 try:
                     stdout, stderr = process.communicate(timeout=0.1)
