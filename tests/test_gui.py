@@ -84,7 +84,11 @@ class GuiSmokeTests(unittest.TestCase):
         self.app.deiconify()
         self.app.update()
         dialog = SettingsDialog(self.app)
-        dialog.update_idletasks()
+        dialog.update()
+        deadline = time.monotonic() + 3
+        while not dialog.winfo_viewable() and time.monotonic() < deadline:
+            dialog.update()
+            time.sleep(0.01)
         self.assertIn("get_exe", dialog.vars)
         self.assertIn("env_file", dialog.vars)
         self.assertTrue(dialog.auto_start.get())
