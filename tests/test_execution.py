@@ -181,7 +181,7 @@ class ExecutionTests(unittest.TestCase):
         run = self.run_fake(fake)
         self.assertEqual(run.status, "failed")
         self.assertIn("退出码 5", run.error)
-        log = [json.loads(s) for s in (run.directory / "rcom.jsonl").read_text().splitlines()]
+        log = [json.loads(s) for s in (run.directory / "rcom.jsonl").read_text(encoding="utf-8").splitlines()]
         self.assertTrue(any(r["returncode"] == 5 and r["error"] for r in log))
         self.assertFalse(any(s.startswith("COM zoom_pv_open") for s in fake.commands))
 

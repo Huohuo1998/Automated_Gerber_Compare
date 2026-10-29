@@ -41,7 +41,12 @@ jobs:
         run: |
           $application = Start-Process -FilePath dist/AutomatedGerberCompare/AutomatedGerberCompare.exe -PassThru
           Start-Sleep -Seconds 5
+          $application.Refresh()
           if ($application.HasExited) { throw 'Packaged GUI exited during startup.' }
+          if ($application.MainWindowTitle -notlike 'Automated Gerber Compare*') {
+            Stop-Process -Id $application.Id
+            throw 'Packaged application did not show its main desktop window.'
+          }
           Stop-Process -Id $application.Id
       - uses: actions/upload-artifact@v4
         with:
