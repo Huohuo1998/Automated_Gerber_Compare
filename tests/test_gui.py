@@ -91,6 +91,9 @@ class GuiSmokeTests(unittest.TestCase):
         dialog.destroy()
 
     def test_compact_window_preserves_workspace(self):
+        # Hosted Windows uses a small screen; lift its default WM sizing cap
+        # to exercise both compact and full layouts in this one fixture.
+        self.app.maxsize(2200, 1600)
         self.app.deiconify()
         self.app.geometry("1080x760")
         self.app.update()

@@ -234,6 +234,7 @@ class App(tk.Tk):
         self.backend_label = label(heading, "●  待连接", color=MUTED, background=BG, size=9)
         self.backend_label.pack(side="right", padx=(0, 8))
         steps = tk.Frame(root, background=BG)
+        self.steps_frame = steps
         steps.grid(row=1, column=0, sticky="ew", pady=(0, 16))
         for index, title in enumerate(("选择资料", "校验与对比", "查看报告")):
             label(steps, f"0{index+1}", background=BG, color=ACCENT, bold=True, size=9).pack(side="left", padx=(0 if index == 0 else 25, 8))
@@ -346,6 +347,13 @@ class App(tk.Tk):
                 self.metrics_frame.grid_remove()
             else:
                 self.metrics_frame.grid()
+        short = self.winfo_height() < 780
+        if short != getattr(self, "_short", None):
+            self._short = short
+            if short:
+                self.steps_frame.grid_remove()
+            else:
+                self.steps_frame.grid()
 
     def _text_tab(self, title):
         frame = tk.Frame(self.notebook, background=PAPER)

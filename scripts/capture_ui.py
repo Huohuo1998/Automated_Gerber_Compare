@@ -34,6 +34,7 @@ def main():
         with patch("automated_gerber_compare.gui.load_settings", return_value=Settings(auto_start_get=False)):
             app = App(startup=False)
         try:
+            app.maxsize(2200, 1600)
             app.geometry("1280x940+20+20")
             capture(app, destination / "01-welcome.png")
             import zipfile
