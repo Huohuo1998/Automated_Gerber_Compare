@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "automated-gerber-compare"
+version = "0.1.0"
+description = "Valor NPI driven Gerber comparison desktop application"
+requires-python = ">=3.11"
+dependencies = []
+
+[project.scripts]
+gerber-compare = "automated_gerber_compare.cli:main"
+
+[project.gui-scripts]
+gerber-compare-desktop = "automated_gerber_compare.gui:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
