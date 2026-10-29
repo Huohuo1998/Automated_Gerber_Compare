@@ -19,7 +19,7 @@ class DiscoveryTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
-        self.root = Path(self.temp.name)
+        self.root = Path(self.temp.name).resolve()
 
     def installation(self, version, *, get=True, rcom=True):
         edir = self.root / f"Valor{version}" / f"vNPI_{version}" / "edir"
@@ -108,7 +108,7 @@ class SessionTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
-        self.root = Path(self.temp.name)
+        self.root = Path(self.temp.name).resolve()
         self.get = self.root / "with spaces" / "get.exe"
         self.rcom = self.root / "with spaces" / "rcom.exe"
         self.get.parent.mkdir()

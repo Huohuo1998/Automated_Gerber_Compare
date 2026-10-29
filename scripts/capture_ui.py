@@ -51,6 +51,8 @@ def main():
             app._show_validation(prepare_comparison(*paths, root / "output"))
             app._set_controls()
             capture(app, destination / "02-paired.png")
+            app.geometry("1080x760+20+20")
+            capture(app, destination / "04-compact.png")
             dialog = SettingsDialog(app)
             try:
                 capture(dialog, destination / "03-settings.png")

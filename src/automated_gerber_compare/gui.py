@@ -178,8 +178,10 @@ class App(tk.Tk):
     def __init__(self, *, startup=True):
         super().__init__()
         self.title(f"Automated Gerber Compare {__version__}")
-        self.geometry("1280x940")
-        self.minsize(1040, 820)
+        width = max(1000, min(1280, self.winfo_screenwidth() - 60))
+        height = max(690, min(940, self.winfo_screenheight() - 100))
+        self.geometry(f"{width}x{height}")
+        self.minsize(1000, 690)
         install_theme(self)
         self.events: queue.Queue = queue.Queue()
         self.cancel_event = threading.Event()
@@ -203,6 +205,7 @@ class App(tk.Tk):
         self.file_labels = {}
         self.metric_vars = {key: tk.StringVar(value="—") for key in ("pairs", "errors", "warnings", "result")}
         self._build()
+        self.bind("<Configure>", self._responsive, add="+")
         self._update_config_label()
         self._set_controls()
         if settings_error:
@@ -257,6 +260,7 @@ class App(tk.Tk):
             detail.pack(fill="x")
             self.file_labels[side] = (filename, detail)
         metrics = tk.Frame(root, background=BG)
+        self.metrics_frame = metrics
         metrics.grid(row=3, column=0, sticky="ew", pady=(0, 16))
         for index, (key, title, hint) in enumerate((("pairs", "匹配图层", "唯一对应的 A / B 图层"), ("errors", "校验错误", "修正后即可继续"),
                                                    ("warnings", "关注事项", "确认后可继续对比"), ("result", "比较结果", "以 Valor 图形结果判定"))):
@@ -331,6 +335,17 @@ class App(tk.Tk):
         horizontal.grid(row=1, column=0, sticky="ew")
         tree.configure(yscrollcommand=vertical.set, xscrollcommand=horizontal.set)
         return tree
+
+    def _responsive(self, event):
+        if event.widget is not self:
+            return
+        compact = self.winfo_height() < 850
+        if compact != getattr(self, "_compact", None):
+            self._compact = compact
+            if compact:
+                self.metrics_frame.grid_remove()
+            else:
+                self.metrics_frame.grid()
 
     def _text_tab(self, title):
         frame = tk.Frame(self.notebook, background=PAPER)

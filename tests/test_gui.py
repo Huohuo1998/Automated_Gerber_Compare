@@ -90,6 +90,16 @@ class GuiSmokeTests(unittest.TestCase):
         self.assertTrue(dialog.auto_start.get())
         dialog.destroy()
 
+    def test_compact_window_preserves_workspace(self):
+        self.app.deiconify()
+        self.app.geometry("1080x760")
+        self.app.update()
+        self.assertFalse(self.app.metrics_frame.winfo_ismapped())
+        self.assertGreater(self.app.pair_tree.winfo_height(), 40)
+        self.app.geometry("1280x940")
+        self.app.update()
+        self.assertTrue(self.app.metrics_frame.winfo_ismapped())
+
     def test_discovered_paths_update_ui_without_overwriting_inputs(self):
         self.choose("A", self.a)
         self.choose("B", self.a)

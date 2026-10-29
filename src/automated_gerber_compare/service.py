@@ -90,7 +90,10 @@ def run_comparison(
                     source = Path(connection.startup_log)
                     target = directory / "get_startup.log"
                     if source.is_file() and source.resolve() != target.resolve():
-                        shutil.copy2(source, target)
+                        try:
+                            shutil.copy2(source, target)
+                        except OSError as exc:
+                            result.warnings.append(f"启动日志未能复制，原记录位于 {source}：{exc}")
                 for lmc in setup_commands(prepared, settings, job):
                     answer = client.execute(lmc)
                     if lmc.startswith("COM create_entity,job=,"):
