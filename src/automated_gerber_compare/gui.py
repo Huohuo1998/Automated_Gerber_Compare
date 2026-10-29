@@ -20,7 +20,7 @@ from .report import STATUS_LABELS
 from .service import run_comparison
 from .session import ValorSession
 from .settings import Settings, config_directory, default_output_directory, load_settings, save_settings
-from .ui_components import ACCENT, AMBER, BG, BORDER, FONT, GREEN, INK, MUTED, PALE, PAPER, RED, Card, install_theme, label, layer_mark
+from .ui_components import ACCENT, AMBER, BG, FONT, GREEN, INK, MUTED, PALE, PAPER, RED, Card, ProgressLine, install_theme, label, layer_mark
 from .validation import prepare_comparison
 
 
@@ -308,7 +308,7 @@ class App(tk.Tk):
         self.export_button.pack(side="right")
         self.open_button = ttk.Button(actions, text="打开报告", style="Quiet.TButton", command=self._open_report)
         self.open_button.pack(side="right", padx=10)
-        self.progress_bar = ttk.Progressbar(footer.body, mode="determinate", maximum=100)
+        self.progress_bar = ProgressLine(footer.body)
         self.progress_bar.pack(fill="x", pady=(13, 10))
         label(footer.body, variable=self.status, size=9, color=MUTED, wraplength=1100, justify="left").pack(anchor="w")
         bottom = tk.Frame(root, background=BG)
@@ -334,7 +334,14 @@ class App(tk.Tk):
         vertical.grid(row=0, column=1, sticky="ns")
         horizontal = ttk.Scrollbar(frame, orient="horizontal", command=tree.xview)
         horizontal.grid(row=1, column=0, sticky="ew")
-        tree.configure(yscrollcommand=vertical.set, xscrollcommand=horizontal.set)
+        def update_scrollbar(scrollbar, first, last):
+            scrollbar.set(first, last)
+            if float(first) <= 0 and float(last) >= 1:
+                scrollbar.grid_remove()
+            else:
+                scrollbar.grid()
+        tree.configure(yscrollcommand=lambda first, last: update_scrollbar(vertical, first, last),
+                       xscrollcommand=lambda first, last: update_scrollbar(horizontal, first, last))
         return tree
 
     def _responsive(self, event):
@@ -462,7 +469,7 @@ class App(tk.Tk):
         self.metric_result_label.configure(foreground=INK)
         self.empty_state.place(relx=0.5, rely=0.58, anchor="center")
         self.status.set("资料已更新，校验后即可开始对比。")
-        self.progress_bar["value"] = 0
+        self.progress_bar.set(0)
         self._render_inputs()
         self._set_controls()
 
@@ -587,7 +594,7 @@ class App(tk.Tk):
                     self._append_log(value.message if event == "backend_ready" else str(value))
                 elif event == "progress":
                     current, total, text = value
-                    self.progress_bar["value"] = 100 * current / total
+                    self.progress_bar.set(100 * current / total)
                     self.status.set(text)
                     self._append_log(text)
                 elif event == "validated":

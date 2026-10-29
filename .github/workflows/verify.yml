@@ -34,7 +34,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - run: python -m pip install -e . pyinstaller "pillow>=11.2.1"
+      - run: python -m pip install -e . pyinstaller "pillow>=11.2.1" pywin32
       - run: python scripts/capture_ui.py ui-preview
       - run: python -m PyInstaller --noconfirm --clean --windowed --onedir --name AutomatedGerberCompare --paths src src/automated_gerber_compare/__main__.py
       - name: Validate packaged application

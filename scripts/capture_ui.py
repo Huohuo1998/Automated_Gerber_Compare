@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import ctypes
+import os
 import sys
 import tempfile
 from pathlib import Path
@@ -29,6 +30,16 @@ def capture(window, output):
 def main():
     destination = Path(sys.argv[1] if len(sys.argv) > 1 else "ui-preview")
     destination.mkdir(parents=True, exist_ok=True)
+    if os.name == "nt" and os.environ.get("GITHUB_ACTIONS") == "true":
+        # Use a large real desktop so Windows paints the entire capture, including
+        # controls which would be clipped by the hosted runner's 1024x768 default.
+        import win32api
+        import win32con
+        mode = win32api.EnumDisplaySettings(None, win32con.ENUM_CURRENT_SETTINGS)
+        mode.PelsWidth, mode.PelsHeight = 1920, 1080
+        mode.Fields |= win32con.DM_PELSWIDTH | win32con.DM_PELSHEIGHT
+        result = win32api.ChangeDisplaySettings(mode, 0)
+        print(f"Capture desktop resolution result: {result}")
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
         with patch("automated_gerber_compare.gui.load_settings", return_value=Settings(auto_start_get=False)):

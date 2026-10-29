@@ -14,7 +14,7 @@ PALE = "#EDF2FF"
 GREEN = "#209477"
 AMBER = "#B67A20"
 RED = "#D04D61"
-FONT = "Microsoft YaHei UI"
+FONT = "Segoe UI"
 
 
 def install_theme(root: tk.Tk):
@@ -41,22 +41,48 @@ def install_theme(root: tk.Tk):
     style.configure("TEntry", padding=9, borderwidth=1, relief="flat", fieldbackground="#FAFBFE",
                     bordercolor=BORDER, lightcolor=BORDER, darkcolor=BORDER)
     style.map("TEntry", bordercolor=[("focus", "#A7B8FC")], lightcolor=[("focus", "#A7B8FC")])
-    style.configure("TCombobox", padding=8, borderwidth=1, fieldbackground="#FAFBFE", background="#F0F3FA", arrowcolor=MUTED)
+    style.configure("TCombobox", padding=8, borderwidth=1, fieldbackground="#FAFBFE", background="#F0F3FA", arrowcolor=MUTED,
+                    bordercolor=BORDER, lightcolor=BORDER, darkcolor=BORDER)
+    style.map("TCombobox", fieldbackground=[("readonly", "#FAFBFE")], background=[("readonly", "#F0F3FA")],
+              foreground=[("readonly", INK)], selectbackground=[("readonly", PALE)], selectforeground=[("readonly", INK)])
     style.configure("TCheckbutton", background=PAPER, foreground=INK, padding=6, font=(FONT, 9))
     style.map("TCheckbutton", background=[("active", PAPER)])
-    style.configure("TNotebook", background=PAPER, borderwidth=0, tabmargins=(0, 0, 0, 12))
+    style.configure("TNotebook", background=PAPER, borderwidth=0, tabmargins=(0, 0, 0, 12),
+                    bordercolor=PAPER, lightcolor=PAPER, darkcolor=PAPER)
     style.configure("TNotebook.Tab", background=PAPER, foreground=MUTED, borderwidth=0,
-                    padding=(18, 10), font=(FONT, 10))
-    style.map("TNotebook.Tab", foreground=[("selected", ACCENT)], background=[("selected", PALE), ("active", "#F6F8FC")])
+                    padding=(18, 10), font=(FONT, 10), bordercolor=PAPER, lightcolor=PAPER, darkcolor=PAPER)
+    style.map("TNotebook.Tab", foreground=[("selected", ACCENT)], background=[("selected", PALE), ("active", "#F6F8FC")],
+              bordercolor=[("selected", PALE)], lightcolor=[("selected", PALE)], darkcolor=[("selected", PALE)])
     style.configure("Treeview", background=PAPER, fieldbackground=PAPER, foreground=INK, borderwidth=0,
-                    relief="flat", rowheight=39, font=(FONT, 9))
+                    relief="flat", rowheight=39, font=(FONT, 9), bordercolor=PAPER, lightcolor=PAPER, darkcolor=PAPER)
     style.configure("Treeview.Heading", background="#F7F9FD", foreground=MUTED,
-                    borderwidth=0, padding=(12, 12), font=(FONT, 9))
+                    borderwidth=0, padding=(12, 12), font=(FONT, 9), bordercolor="#F7F9FD", lightcolor="#F7F9FD", darkcolor="#F7F9FD")
     style.map("Treeview", background=[("selected", PALE)], foreground=[("selected", ACCENT)])
     style.map("Treeview.Heading", background=[("active", "#F1F4FB")])
     style.configure("Horizontal.TProgressbar", background=ACCENT, troughcolor="#E9EEF8", borderwidth=0,
                     lightcolor=ACCENT, darkcolor=ACCENT, thickness=4)
-    style.configure("TScrollbar", background="#D4DDEB", troughcolor=PAPER, borderwidth=0, arrowsize=10)
+    for orientation in ("Vertical", "Horizontal"):
+        style.layout(f"{orientation}.TScrollbar", [
+            (f"{orientation}.Scrollbar.trough", {"sticky": "nswe", "children": [
+                (f"{orientation}.Scrollbar.thumb", {"sticky": "nswe", "expand": True})]})])
+        style.configure(f"{orientation}.TScrollbar", background="#D4DDEB", troughcolor=PAPER, borderwidth=0,
+                        bordercolor=PAPER, lightcolor="#D4DDEB", darkcolor="#D4DDEB", arrowsize=8, gripcount=0)
+
+
+class ProgressLine(tk.Canvas):
+    def __init__(self, parent):
+        super().__init__(parent, background=PAPER, height=4, highlightthickness=0, borderwidth=0)
+        self.value = 0.0
+        self.track = self.create_line(2, 2, 2, 2, fill="#E9EEF8", width=4, capstyle="round")
+        self.fill = self.create_line(2, 2, 2, 2, fill=ACCENT, width=4, capstyle="round", state="hidden")
+        self.bind("<Configure>", lambda _: self.set(self.value))
+
+    def set(self, value):
+        self.value = max(0, min(100, float(value)))
+        width = max(4, self.winfo_width())
+        self.coords(self.track, 2, 2, width-2, 2)
+        self.coords(self.fill, 2, 2, 2+(width-4)*self.value/100, 2)
+        self.itemconfigure(self.fill, state="normal" if self.value else "hidden")
 
 
 def label(parent, text=None, *, variable=None, size=10, color=INK, bold=False, background=PAPER, **kwargs):
