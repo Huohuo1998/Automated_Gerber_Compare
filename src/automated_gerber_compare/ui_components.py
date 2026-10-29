@@ -86,8 +86,10 @@ class ProgressLine(tk.Canvas):
 
 
 def label(parent, text=None, *, variable=None, size=10, color=INK, bold=False, background=PAPER, **kwargs):
-    return tk.Label(parent, text=text, textvariable=variable, font=(FONT, size, "bold" if bold else "normal"),
-                    background=background, foreground=color, anchor="w", **kwargs)
+    options = dict(background=background, foreground=color, anchor="w", borderwidth=0,
+                   highlightthickness=0, padx=0, pady=0)
+    options.update(kwargs)
+    return tk.Label(parent, text=text, textvariable=variable, font=(FONT, size, "bold" if bold else "normal"), **options)
 
 
 class Card(tk.Canvas):

@@ -42,7 +42,7 @@ def main():
         print(f"Capture desktop resolution result: {result}")
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
-        with patch("automated_gerber_compare.gui.load_settings", return_value=Settings(auto_start_get=False)):
+        with patch("automated_gerber_compare.gui.load_settings", return_value=Settings()):
             app = App(startup=False)
         try:
             app.maxsize(2200, 1600)

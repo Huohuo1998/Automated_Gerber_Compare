@@ -88,6 +88,9 @@ class GuiSmokeTests(unittest.TestCase):
         self.assertIn("get_exe", dialog.vars)
         self.assertIn("env_file", dialog.vars)
         self.assertTrue(dialog.auto_start.get())
+        self.assertTrue(dialog.save_button.winfo_ismapped())
+        self.assertLessEqual(dialog.save_button.winfo_rooty() + dialog.save_button.winfo_height(),
+                             dialog.winfo_rooty() + dialog.winfo_height())
         dialog.destroy()
 
     def test_compact_window_preserves_workspace(self):
