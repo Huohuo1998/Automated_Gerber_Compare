@@ -11,7 +11,7 @@ from automated_gerber_compare.analyzer import layer_role, parse_drill_format, pa
 from automated_gerber_compare.archives import ArchiveError, ArchiveLimits, extract_archive
 from automated_gerber_compare.commands import build_plan, command, import_command
 from automated_gerber_compare.settings import Settings, load_settings, save_settings
-from automated_gerber_compare.validation import prepare_comparison, verify_snapshot, warnings_for_pair
+from automated_gerber_compare.validation import prepare_comparison, verify_snapshot, warnings_for_pair, notice_summary
 
 GERBER = "%FSLAX26Y26*%\n%MOIN*%\n%ADD10C,0.01*%\nD10*\nX00000000Y00000000D03*\nM02*\n"
 DRILL = "; Format : 2.4 / Absolute / Inch / Trailing\nM48\nINCH,LZ\nFMAT,2\nT01C0.01\n%\nT01\nX0012Y0023\nM30\n"
@@ -114,6 +114,8 @@ class InputTests(unittest.TestCase):
         top = warnings_for_pair(prepared.validation, pairs["signal:top"])
         self.assertEqual([i.code for i in top], ["different_formats"])
         self.assertEqual(warnings_for_pair(prepared.validation, pairs["mask:top"]), [])
+        self.assertEqual(notice_summary(prepared.validation, pairs["signal:top"]), "坐标精度：A 2.6 / B 2.4")
+        self.assertEqual(notice_summary(prepared.validation, pairs["mask:top"]), "—")
 
     def test_filename_warning_is_associated_by_file_identity(self):
         prepared = self.prepare({"unknown.gbr": GERBER}, {"UNKNOWN.GBR": GERBER})

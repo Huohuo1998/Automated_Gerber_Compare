@@ -94,3 +94,36 @@ def warnings_for_pair(result: ValidationResult, pair: LayerPair) -> list[Issue]:
     records = {(pair.a.side, pair.a.relative_path), (pair.b.side, pair.b.relative_path)}
     return [issue for issue in result.warnings if issue.layer_key == pair.key
             or (issue.file and (issue.side, issue.file) in records)]
+
+
+def notice_summary(result: ValidationResult, pair: LayerPair) -> str:
+    """Keep table notices scan-friendly; full explanations remain in the issue model."""
+    summaries = []
+    for issue in warnings_for_pair(result, pair):
+        if issue.code == "filename_match":
+            text = "按文件名配对，请确认层用途"
+        elif issue.code == "different_formats" and pair.a.import_format and pair.b.import_format:
+            a, b = pair.a.import_format, pair.b.import_format
+            differences = []
+            if a.units != b.units:
+                differences.append(f"单位：A {a.units} / B {b.units}")
+            if (a.nf1, a.nf2, a.decimal) != (b.nf1, b.nf2, b.decimal):
+                left = "显式小数" if a.decimal else f"{a.nf1}.{a.nf2}"
+                right = "显式小数" if b.decimal else f"{b.nf1}.{b.nf2}"
+                differences.append(f"坐标精度：A {left} / B {right}")
+            if a.coordinates != b.coordinates:
+                differences.append("绝对 / 增量坐标设置不同")
+            if a.zeroes != b.zeroes:
+                differences.append("零抑制设置不同")
+            if a.format != b.format:
+                differences.append("导入文件格式不同")
+            if a.separator != b.separator:
+                differences.append("分隔符设置不同")
+            text = differences[0] if differences else "导入参数不同"
+            if len(differences) > 1:
+                text += f"（共 {len(differences)} 项）"
+        else:
+            text = issue.message
+        if text not in summaries:
+            summaries.append(text)
+    return "；".join(summaries) or "—"

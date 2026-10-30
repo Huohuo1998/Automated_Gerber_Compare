@@ -83,7 +83,7 @@ class GuiSmokeTests(unittest.TestCase):
         for index, pair in enumerate(self.app.prepared.validation.pairs):
             value = self.app.pair_tree.set(str(index), "notice")
             if pair.key == "signal:top":
-                self.assertIn("导入格式不同", value)
+                self.assertIn("A 2.6 / B 2.4", value)
             else:
                 self.assertEqual(value, "—")
 

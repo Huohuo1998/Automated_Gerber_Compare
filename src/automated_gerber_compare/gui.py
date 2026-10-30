@@ -23,7 +23,7 @@ from .service import run_comparison
 from .session import ValorSession
 from .settings import Settings, config_directory, default_output_directory, load_settings, save_settings
 from .ui_components import ACCENT, AMBER, BG, FONT, GREEN, INK, MUTED, PALE, PAPER, RED, Card, ProgressLine, SourcePath, Tooltip, install_theme, label
-from .validation import prepare_comparison, warnings_for_pair
+from .validation import prepare_comparison, warnings_for_pair, notice_summary
 
 
 class SettingsDialog(tk.Toplevel):
@@ -547,10 +547,9 @@ class App(tk.Tk):
         self.prepared = prepared
         result = prepared.validation
         for index, pair in enumerate(result.pairs):
-            notices = list(dict.fromkeys(issue.message for issue in warnings_for_pair(result, pair)))
             self.pair_tree.insert("", "end", iid=str(index), tags=("even" if index % 2 == 0 else "odd",),
                                   values=(pair.label, PurePosixPath(pair.a.relative_path).name, PurePosixPath(pair.b.relative_path).name,
-                                          "；".join(notices) if notices else "—", "已配对" if result.can_compare else "需检查", "—"))
+                                          notice_summary(result, pair), "已配对" if result.can_compare else "需检查", "—"))
         for index, file in enumerate(result.files):
             self.file_tree.insert("", "end", tags=("even" if index % 2 == 0 else "odd",),
                                   values=(file.side, file.relative_path, file.category, f"{file.size:,}"))
@@ -586,6 +585,11 @@ class App(tk.Tk):
         notices = warnings_for_pair(self.prepared.validation, pair)
         if notices:
             text += "\n\n校验提醒：\n" + "\n".join(f"{issue.side + '：' if issue.side else ''}{issue.message}" for issue in notices)
+            for side, record in (("A", pair.a), ("B", pair.b)):
+                fmt = record.import_format
+                if fmt:
+                    precision = "显式小数" if fmt.decimal else f"{fmt.nf1}.{fmt.nf2}"
+                    text += f"\n\n{side} 导入：{fmt.format} · {fmt.units} · {precision}\n坐标：{fmt.coordinates} · 零抑制：{fmt.zeroes}"
         if self.run:
             row = self.run.layers[index]
             text += f"\n\n结果：{STATUS_LABELS[row.status]}\n差异网格：{row.difference_boxes if row.difference_boxes is not None else '未取得'}"
@@ -601,7 +605,10 @@ class App(tk.Tk):
             return ""
         pair = self.prepared.validation.pairs[int(row)]
         if column == "#4":
-            return "\n".join(dict.fromkeys(issue.message for issue in warnings_for_pair(self.prepared.validation, pair)))
+            issues = warnings_for_pair(self.prepared.validation, pair)
+            if issues:
+                return notice_summary(self.prepared.validation, pair)+"\n\n"+"\n".join(dict.fromkeys(issue.message for issue in issues))
+            return ""
         if column in ("#2", "#3"):
             return pair.a.relative_path if column == "#2" else pair.b.relative_path
         return ""
