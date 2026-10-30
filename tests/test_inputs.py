@@ -11,7 +11,7 @@ from automated_gerber_compare.analyzer import layer_role, parse_drill_format, pa
 from automated_gerber_compare.archives import ArchiveError, ArchiveLimits, extract_archive
 from automated_gerber_compare.commands import build_plan, command, import_command
 from automated_gerber_compare.settings import Settings, load_settings, save_settings
-from automated_gerber_compare.validation import prepare_comparison, verify_snapshot
+from automated_gerber_compare.validation import prepare_comparison, verify_snapshot, warnings_for_pair
 
 GERBER = "%FSLAX26Y26*%\n%MOIN*%\n%ADD10C,0.01*%\nD10*\nX00000000Y00000000D03*\nM02*\n"
 DRILL = "; Format : 2.4 / Absolute / Inch / Trailing\nM48\nINCH,LZ\nFMAT,2\nT01C0.01\n%\nT01\nX0012Y0023\nM30\n"
@@ -106,6 +106,19 @@ class InputTests(unittest.TestCase):
         pair = v.pairs[0]
         self.assertIn("nf2=4", import_command(pair.a, pair.layer_a, "test"))
         self.assertIn("nf2=6", import_command(pair.b, pair.layer_b, "test"))
+
+    def test_warnings_are_associated_with_the_correct_layer(self):
+        prepared = self.prepare({"GF_Top_Layer.gdo": GERBER, "GF_Solder_Mask_Top.gdo": GERBER},
+                                {"GF_Top_Layer.gdo": GERBER.replace("26Y26", "24Y24"), "GF_Solder_Mask_Top.gdo": GERBER})
+        pairs = {p.key:p for p in prepared.validation.pairs}
+        top = warnings_for_pair(prepared.validation, pairs["signal:top"])
+        self.assertEqual([i.code for i in top], ["different_formats"])
+        self.assertEqual(warnings_for_pair(prepared.validation, pairs["mask:top"]), [])
+
+    def test_filename_warning_is_associated_by_file_identity(self):
+        prepared = self.prepare({"unknown.gbr": GERBER}, {"UNKNOWN.GBR": GERBER})
+        notices = warnings_for_pair(prepared.validation, prepared.validation.pairs[0])
+        self.assertEqual({i.side for i in notices}, {"A", "B"})
 
     def test_staged_snapshot_change_is_detected(self):
         prepared = self.prepare({"top.gtl": GERBER}, {"top.gtl": GERBER})

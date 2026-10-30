@@ -249,6 +249,45 @@ class ExecutionTests(unittest.TestCase):
 
 
 class TransportTests(unittest.TestCase):
+    def test_normal_wait_is_five_seconds(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            process = FakeProcess(b"65")
+            with patch.object(process, "communicate", wraps=process.communicate) as communicate:
+                client = RcomClient(Settings(rcom_exe="rcom.exe"), Path(tmp), threading.Event())
+                with patch("automated_gerber_compare.rcom.subprocess.Popen", return_value=process):
+                    self.assertEqual(client.execute("COM compare_layers"), "65")
+            self.assertEqual(communicate.call_args.kwargs["timeout"], 5)
+
+    def test_short_total_timeout_caps_wait_interval(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            process = FakeProcess()
+            with patch.object(process, "communicate", wraps=process.communicate) as communicate:
+                client = RcomClient(Settings(rcom_exe="rcom.exe"), Path(tmp), threading.Event())
+                with patch("automated_gerber_compare.rcom.subprocess.Popen", return_value=process):
+                    client.execute("TST", timeout=2)
+            wait = communicate.call_args.kwargs["timeout"]
+            self.assertGreater(wait, 0)
+            self.assertLessEqual(wait, 2)
+
+    def test_wait_interval_expiry_is_not_a_command_failure(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            process = FakeProcess()
+            attempts = 0
+            def communicate(timeout=None):
+                nonlocal attempts
+                attempts += 1
+                if attempts == 1:
+                    raise subprocess.TimeoutExpired("rcom", timeout)
+                return b"65", b""
+            process.communicate = communicate
+            client = RcomClient(Settings(rcom_exe="rcom.exe"), Path(tmp), threading.Event())
+            with patch("automated_gerber_compare.rcom.subprocess.Popen", return_value=process):
+                self.assertEqual(client.execute("COM compare_layers"), "65")
+            record = json.loads((Path(tmp)/"rcom.jsonl").read_text(encoding="utf-8"))
+            self.assertEqual(record["error"], "")
+            self.assertFalse(record["uncertain"])
+            self.assertEqual(attempts, 2)
+
     @unittest.skipIf(os.name == "nt", "POSIX executable fixture; Windows GUI path has separate tests")
     def test_real_subprocess_keeps_whole_command_as_one_argument(self):
         with tempfile.TemporaryDirectory() as tmp:

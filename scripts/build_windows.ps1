@@ -4,6 +4,6 @@ py -3 -m venv .venv
 if ($LASTEXITCODE -ne 0) { throw 'Failed to create Python environment.' }
 & .venv\Scripts\python.exe -m pip install -e . pyinstaller
 if ($LASTEXITCODE -ne 0) { throw 'Failed to install build dependencies.' }
-& .venv\Scripts\python.exe -m PyInstaller --noconfirm --clean --windowed --onedir --name AutomatedGerberCompare --paths src src/automated_gerber_compare/__main__.py
+& .venv\Scripts\python.exe -m PyInstaller --noconfirm --clean --windowed --onedir --name AutomatedGerberCompare --icon src/automated_gerber_compare/assets/app.ico --collect-data automated_gerber_compare --paths src src/automated_gerber_compare/__main__.py
 if ($LASTEXITCODE -ne 0) { throw 'PyInstaller failed.' }
 Write-Host 'Build ready: dist\AutomatedGerberCompare\AutomatedGerberCompare.exe'

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "automated-gerber-compare"
-version = "0.2.0"
+version = "0.3.0"
 description = "Valor NPI driven Gerber comparison desktop application"
 requires-python = ">=3.11"
 dependencies = []
@@ -17,3 +17,6 @@ gerber-compare-desktop = "automated_gerber_compare.gui:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+automated_gerber_compare = ["assets/*.ico", "assets/*.png"]

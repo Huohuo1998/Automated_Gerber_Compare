@@ -14,6 +14,7 @@ class Issue:
     message: str
     side: str = ""
     file: str = ""
+    layer_key: str = ""
 
 
 @dataclass(frozen=True)

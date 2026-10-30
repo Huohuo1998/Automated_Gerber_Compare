@@ -10,9 +10,11 @@ import webbrowser
 from dataclasses import asdict, replace
 from datetime import datetime
 from pathlib import Path, PurePosixPath
-from tkinter import filedialog, messagebox, ttk
+from tkinter import filedialog, ttk
 
 from . import __version__
+from . import dialogs as messagebox
+from .branding import app_mark, apply_window_icon, place_dialog, prepare_process_identity
 from .discovery import apply_discovery, discover_installations
 from .models import PreparedComparison, RunResult
 from .rcom import EndpointLock, RcomClient
@@ -20,8 +22,8 @@ from .report import STATUS_LABELS
 from .service import run_comparison
 from .session import ValorSession
 from .settings import Settings, config_directory, default_output_directory, load_settings, save_settings
-from .ui_components import ACCENT, AMBER, BG, FONT, GREEN, INK, MUTED, PALE, PAPER, RED, Card, ProgressLine, install_theme, label, layer_mark
-from .validation import prepare_comparison
+from .ui_components import ACCENT, AMBER, BG, FONT, GREEN, INK, MUTED, PALE, PAPER, RED, Card, ProgressLine, SourcePath, Tooltip, install_theme, label
+from .validation import prepare_comparison, warnings_for_pair
 
 
 class SettingsDialog(tk.Toplevel):
@@ -33,7 +35,8 @@ class SettingsDialog(tk.Toplevel):
         super().__init__(parent)
         self.parent_app = parent
         self.title("Valor 设置")
-        self.geometry("740x690")
+        apply_window_icon(self)
+        place_dialog(self, parent, 740, 690)
         self.minsize(680, 650)
         self.configure(background=PAPER)
         self.transient(parent)
@@ -181,7 +184,9 @@ class SettingsDialog(tk.Toplevel):
 
 class App(tk.Tk):
     def __init__(self, *, startup=True):
+        prepare_process_identity()
         super().__init__()
+        apply_window_icon(self)
         self.title(f"Automated Gerber Compare {__version__}")
         width = max(1000, min(1280, self.winfo_screenwidth() - 60))
         height = max(690, min(940, self.winfo_screenheight() - 100))
@@ -208,6 +213,7 @@ class App(tk.Tk):
         self.config_label = tk.StringVar()
         self.input_buttons = []
         self.file_labels = {}
+        self.source_labels = {}
         self.metric_vars = {key: tk.StringVar(value="—") for key in ("pairs", "errors", "warnings", "result")}
         self._build()
         self.bind("<Configure>", self._responsive, add="+")
@@ -227,7 +233,7 @@ class App(tk.Tk):
         root.rowconfigure(4, weight=1)
         heading = tk.Frame(root, background=BG)
         heading.grid(row=0, column=0, sticky="ew", pady=(0, 22))
-        layer_mark(heading).pack(side="left", padx=(0, 14))
+        app_mark(heading, background=BG).pack(side="left", padx=(0, 14))
         titles = tk.Frame(heading, background=BG)
         titles.pack(side="left")
         label(titles, "Gerber Compare", size=23, bold=True, background=BG).pack(anchor="w")
@@ -257,26 +263,40 @@ class App(tk.Tk):
             top.pack(fill="x")
             label(top, f" {side} ", color=ACCENT, background=PALE, bold=True, size=12, padx=5, pady=2).pack(side="left")
             label(top, title, bold=True, size=11).pack(side="left", padx=10)
-            button = ttk.Button(top, text="选择 ZIP", style="Quiet.TButton", command=lambda s=side: self._choose_zip(s))
+            button = ttk.Button(top, text="选择 ZIP 文件", style="Upload.TButton", command=lambda s=side: self._choose_zip(s))
             button.pack(side="right")
             self.input_buttons.append(button)
             filename = label(body, "添加一份 Gerber 压缩包", size=12, color=MUTED)
             filename.pack(fill="x", pady=(12, 4))
-            detail = label(body, "支持多级目录中的 Gerber 与钻孔文件", size=9, color=MUTED)
-            detail.pack(fill="x")
+            metadata = tk.Frame(body, background=PAPER)
+            metadata.pack(fill="x")
+            detail = label(metadata, "支持 Gerber 与钻孔文件", size=9, color=MUTED)
+            detail.pack(side="left")
             self.file_labels[side] = (filename, detail)
+            source = SourcePath(metadata)
+            source.configure(anchor="e")
+            source.pack(side="right", fill="x", expand=True, padx=(18, 0))
+            self.source_labels[side] = source
+            Tooltip(filename, lambda s=side: (self.path_a if s == "A" else self.path_b).get())
         metrics = tk.Frame(root, background=BG)
         self.metrics_frame = metrics
         metrics.grid(row=3, column=0, sticky="ew", pady=(0, 16))
         for index, (key, title, hint) in enumerate((("pairs", "匹配图层", "唯一对应的 A / B 图层"), ("errors", "校验错误", "修正后即可继续"),
                                                    ("warnings", "关注事项", "确认后可继续对比"), ("result", "比较结果", "以 Valor 图形结果判定"))):
             metrics.columnconfigure(index, weight=1, uniform="metrics")
-            card = Card(metrics, padding=16)
+            card = Card(metrics, padding=14)
             card.grid(row=0, column=index, sticky="nsew", padx=(0 if index == 0 else 6, 0 if index == 3 else 6))
             label(card.body, title, size=9, color=MUTED).pack(anchor="w")
-            value_label = label(card.body, variable=self.metric_vars[key], size=20 if key != "result" else 17, bold=True)
-            value_label.pack(anchor="w", pady=(5, 3))
-            label(card.body, hint, size=8, color=MUTED).pack(anchor="w")
+            value_row = tk.Frame(card.body, background=PAPER)
+            value_row.pack(fill="x", pady=(6, 0))
+            value_label = label(value_row, variable=self.metric_vars[key], size=20 if key != "result" else 17, bold=True)
+            value_label.pack(side="left")
+            help_label = label(value_row, hint, size=8, color=MUTED)
+            help_label.pack(side="right", padx=(8, 0))
+            if key in ("errors", "warnings"):
+                for widget in (card.body, value_row, value_label, help_label):
+                    widget.configure(cursor="hand2")
+                    widget.bind("<Button-1>", lambda _: self.notebook.select(1))
             setattr(self, f"metric_{key}_label", value_label)
         card = Card(root, padding=18, auto_height=False)
         card.grid(row=4, column=0, sticky="nsew")
@@ -285,17 +305,19 @@ class App(tk.Tk):
         caption = tk.Frame(card.body, background=PAPER)
         caption.grid(row=0, column=0, sticky="ew", pady=(0, 12))
         label(caption, "图层工作区", bold=True, size=12).pack(side="left")
-        label(caption, "双击图层查看完整文件路径", color=MUTED, size=8).pack(side="right")
+        label(caption, "悬停查看提醒 · 双击查看图层详情", color=MUTED, size=8).pack(side="right")
         self.notebook = ttk.Notebook(card.body)
         self.notebook.grid(row=1, column=0, sticky="nsew")
-        self.pair_tree = self._tree_tab("层级配对", [("type", "图层分类", 160), ("a", "基准文件 A", 280), ("b", "待比文件 B", 280), ("status", "状态", 130), ("boxes", "差异网格", 85)])
+        self.pair_tree = self._tree_tab("层级配对", [("type", "图层分类", 145), ("a", "基准文件 A", 225), ("b", "待比文件 B", 225),
+                                                    ("notice", "校验提醒", 300), ("status", "对比状态", 110), ("boxes", "差异网格", 80)])
         self.pair_frame = self.pair_tree.master
         self.pair_tree.bind("<Double-1>", self._pair_details)
+        self.pair_tooltip = Tooltip(self.pair_tree, self._pair_tooltip)
         self.issues_text = self._text_tab("校验详情")
         self.file_tree = self._tree_tab("文件清单", [("side", "版本", 60), ("path", "压缩包内路径", 520), ("category", "分类", 180), ("size", "大小 / 字节", 110)])
         self.log_text = self._text_tab("运行记录")
         self.empty_state = tk.Frame(self.pair_frame, background=PAPER)
-        layer_mark(self.empty_state, size=50, background=PAPER).pack(pady=(0, 10))
+        app_mark(self.empty_state, size=50, background=PAPER).pack(pady=(0, 10))
         label(self.empty_state, "从两份资料开始", bold=True, size=13).pack(anchor="center")
         label(self.empty_state, "选择 ZIP 并校验后，在这里查看图层配对与结果。", color=MUTED, size=9).pack(pady=(6, 0))
         self.empty_state.place(relx=0.5, rely=0.58, anchor="center")
@@ -460,8 +482,10 @@ class App(tk.Tk):
                 except OSError:
                     size = "文件待检查"
                 detail.configure(text=f"{size}  ·  已选择，等待校验")
+            self.source_labels[side].set_path(path.parent if path else None)
 
     def _invalidate(self):
+        self._cancel_auto_validation()
         self.prepared = None
         self.run = None
         self.pair_tree.delete(*self.pair_tree.get_children())
@@ -483,14 +507,30 @@ class App(tk.Tk):
         if path:
             (self.path_a if side == "A" else self.path_b).set(path)
             self._invalidate()
+            self._schedule_auto_validation()
 
     def _choose_output(self):
         path = filedialog.askdirectory(parent=self, title="选择工作输出目录", initialdir=self.output.get())
         if path:
             self.output.set(path)
             self._invalidate()
+            self._schedule_auto_validation()
+
+    def _cancel_auto_validation(self):
+        if getattr(self, "_auto_validate_job", None) is not None:
+            self.after_cancel(self._auto_validate_job)
+            self._auto_validate_job = None
+
+    def _schedule_auto_validation(self):
+        self._cancel_auto_validation()
+        if self.path_a.get() and self.path_b.get() and not self.busy:
+            self.status.set("两份资料已选齐，即将自动校验…")
+            self._auto_validate_job = self.after(250, self._validate)
 
     def _validate(self):
+        self._cancel_auto_validation()
+        if self.busy or not self.path_a.get() or not self.path_b.get():
+            return
         self._invalidate()
         self.busy = True
         self.status.set("正在整理文件，并检查图层的一对一对应关系…")
@@ -507,9 +547,10 @@ class App(tk.Tk):
         self.prepared = prepared
         result = prepared.validation
         for index, pair in enumerate(result.pairs):
+            notices = list(dict.fromkeys(issue.message for issue in warnings_for_pair(result, pair)))
             self.pair_tree.insert("", "end", iid=str(index), tags=("even" if index % 2 == 0 else "odd",),
                                   values=(pair.label, PurePosixPath(pair.a.relative_path).name, PurePosixPath(pair.b.relative_path).name,
-                                          "已配对" if result.can_compare else "需检查", "—"))
+                                          "；".join(notices) if notices else "—", "已配对" if result.can_compare else "需检查", "—"))
         for index, file in enumerate(result.files):
             self.file_tree.insert("", "end", tags=("even" if index % 2 == 0 else "odd",),
                                   values=(file.side, file.relative_path, file.category, f"{file.size:,}"))
@@ -542,10 +583,28 @@ class App(tk.Tk):
         index = int(selected[0])
         pair = self.prepared.validation.pairs[index]
         text = f"A：{pair.a.relative_path}\n\nB：{pair.b.relative_path}"
+        notices = warnings_for_pair(self.prepared.validation, pair)
+        if notices:
+            text += "\n\n校验提醒：\n" + "\n".join(f"{issue.side + '：' if issue.side else ''}{issue.message}" for issue in notices)
         if self.run:
             row = self.run.layers[index]
             text += f"\n\n结果：{STATUS_LABELS[row.status]}\n差异网格：{row.difference_boxes if row.difference_boxes is not None else '未取得'}"
         messagebox.showinfo(pair.label, text, parent=self)
+
+    def _pair_tooltip(self):
+        if not self.prepared:
+            return ""
+        tree = self.pair_tree
+        row = tree.identify_row(tree.winfo_pointery()-tree.winfo_rooty())
+        column = tree.identify_column(tree.winfo_pointerx()-tree.winfo_rootx())
+        if not row:
+            return ""
+        pair = self.prepared.validation.pairs[int(row)]
+        if column == "#4":
+            return "\n".join(dict.fromkeys(issue.message for issue in warnings_for_pair(self.prepared.validation, pair)))
+        if column in ("#2", "#3"):
+            return pair.a.relative_path if column == "#2" else pair.b.relative_path
+        return ""
 
     def _start(self):
         if not self.prepared or not self.prepared.validation.can_compare or self.backend_busy:
@@ -684,6 +743,7 @@ class App(tk.Tk):
         self.destroy()
 
     def destroy(self):
+        self._cancel_auto_validation()
         self.backend_cancel.set()
         for name in ("_poll_job", "_startup_job"):
             if hasattr(self, name):

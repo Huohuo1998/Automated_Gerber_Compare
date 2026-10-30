@@ -43,7 +43,7 @@ def match_layers(result: ValidationResult) -> None:
         base = f"{base[:38]}_{digest}"
         result.pairs.append(LayerPair(key, a[0].category, base, a[0], b[0]))
         if a[0].import_format and b[0].import_format and a[0].import_format != b[0].import_format:
-            result.issues.append(Issue("warning", "different_formats", f"{basename} 的两侧导入格式不同，将分别使用各自文件头参数；保持原坐标，不自动平移对齐"))
+            result.issues.append(Issue("warning", "different_formats", "两侧导入格式不同，将分别使用各自文件头参数；保持原坐标，不自动平移对齐", file=basename, layer_key=key))
     for side in ("A", "B"):
         ignored = sum(r.kind == "ignored" for r in result.files if r.side == side)
         if ignored:
@@ -87,3 +87,10 @@ def verify_snapshot(prepared: PreparedComparison) -> None:
                 raise ValueError(f"缺少导入参数：{record.relative_path}")
             if not record.path.is_file() or file_hash(record.path) != record.sha256:
                 raise ValueError(f"校验后的文件快照发生变化，请重新校验：{record.relative_path}")
+
+
+def warnings_for_pair(result: ValidationResult, pair: LayerPair) -> list[Issue]:
+    """Associate notices by explicit semantic key or original file identity, never prose."""
+    records = {(pair.a.side, pair.a.relative_path), (pair.b.side, pair.b.relative_path)}
+    return [issue for issue in result.warnings if issue.layer_key == pair.key
+            or (issue.file and (issue.side, issue.file) in records)]

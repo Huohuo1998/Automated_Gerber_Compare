@@ -2,12 +2,13 @@
 from __future__ import annotations
 
 import tkinter as tk
+from tkinter import font as tkfont
 from tkinter import ttk
 
 BG = "#F5F7FB"
 PAPER = "#FFFFFF"
 INK = "#202D43"
-MUTED = "#7A879C"
+MUTED = "#63738C"
 BORDER = "#E6EBF3"
 ACCENT = "#4568F2"
 PALE = "#EDF2FF"
@@ -33,6 +34,7 @@ def install_theme(root: tk.Tk):
         ("Primary", ACCENT, PAPER, "#3659DF"),
         ("Secondary", "#F0F3FA", "#43516C", "#E6ECF8"),
         ("Quiet", PAPER, MUTED, "#F4F6FB"),
+        ("Upload", PALE, ACCENT, "#DFE7FF"),
     ]:
         style.configure(f"{name}.TButton", font=(FONT, 10), background=color, foreground=foreground,
                         borderwidth=0, padding=(16, 10), focusthickness=0, anchor="center")
@@ -54,9 +56,9 @@ def install_theme(root: tk.Tk):
     style.map("TNotebook.Tab", foreground=[("selected", ACCENT)], background=[("selected", PALE), ("active", "#F6F8FC")],
               bordercolor=[("selected", PALE)], lightcolor=[("selected", PALE)], darkcolor=[("selected", PALE)])
     style.configure("Treeview", background=PAPER, fieldbackground=PAPER, foreground=INK, borderwidth=0,
-                    relief="flat", rowheight=39, font=(FONT, 9), bordercolor=PAPER, lightcolor=PAPER, darkcolor=PAPER)
+                    relief="flat", rowheight=39, font=(FONT, 10), bordercolor=PAPER, lightcolor=PAPER, darkcolor=PAPER)
     style.configure("Treeview.Heading", background="#F7F9FD", foreground=MUTED,
-                    borderwidth=0, padding=(12, 12), font=(FONT, 9), bordercolor="#F7F9FD", lightcolor="#F7F9FD", darkcolor="#F7F9FD")
+                    borderwidth=0, padding=(12, 12), font=(FONT, 10), bordercolor="#F7F9FD", lightcolor="#F7F9FD", darkcolor="#F7F9FD")
     style.map("Treeview", background=[("selected", PALE)], foreground=[("selected", ACCENT)])
     style.map("Treeview.Heading", background=[("active", "#F1F4FB")])
     style.configure("Horizontal.TProgressbar", background=ACCENT, troughcolor="#E9EEF8", borderwidth=0,
@@ -119,10 +121,86 @@ class Card(tk.Canvas):
         self._measure()
 
 
-def layer_mark(parent, *, size=48, background=BG):
-    canvas = tk.Canvas(parent, width=size, height=size, background=background, highlightthickness=0)
-    s = size / 48
-    for offset, color in [(12, "#D5DFFD"), (6, "#95ACFC"), (0, ACCENT)]:
-        canvas.create_polygon(*[v*s for v in (24, 6+offset, 43, 16+offset, 24, 26+offset, 5, 16+offset)],
-                              fill=color, outline="")
-    return canvas
+class Tooltip:
+    def __init__(self, widget, text):
+        self.widget, self.text = widget, text
+        self.window = None
+        self.timer = None
+        self.pending = ""
+        widget.bind("<Enter>", self.refresh, add="+")
+        widget.bind("<Motion>", self.refresh, add="+")
+        widget.bind("<Leave>", self.hide, add="+")
+        widget.bind("<ButtonPress>", self.hide, add="+")
+        widget.bind("<Destroy>", self.hide, add="+")
+
+    def refresh(self, _event=None):
+        value = self.text() if callable(self.text) else self.text
+        if value == self.pending and (self.timer is not None or self.window is not None):
+            return
+        self.hide()
+        self.pending = value
+        if value:
+            self.timer = self.widget.after(400, self.show)
+
+    def show(self):
+        self.timer = None
+        if not self.pending or not self.widget.winfo_exists():
+            return
+        tip = self.window = tk.Toplevel(self.widget)
+        tip.overrideredirect(True)
+        label(tip, self.pending, background=INK, color=PAPER, size=9, padx=12, pady=8,
+              wraplength=500, justify="left").pack()
+        tip.update_idletasks()
+        x = min(self.widget.winfo_pointerx()+12, self.widget.winfo_screenwidth()-tip.winfo_reqwidth()-8)
+        y = min(self.widget.winfo_pointery()+16, self.widget.winfo_screenheight()-tip.winfo_reqheight()-8)
+        tip.geometry(f"+{max(0,x)}+{max(0,y)}")
+
+    def hide(self, _event=None):
+        if self.timer is not None:
+            self.widget.after_cancel(self.timer)
+            self.timer = None
+        if self.window is not None:
+            if self.window.winfo_exists():
+                self.window.destroy()
+            self.window = None
+        self.pending = ""
+
+
+class SourcePath(tk.Label):
+    """One-line source context with the full path available by hover/copy."""
+    def __init__(self, parent):
+        super().__init__(parent, background=PAPER, foreground=MUTED, font=(FONT, 9),
+                         borderwidth=0, padx=0, pady=0, anchor="w", cursor="hand2")
+        self.full_path = ""
+        self.bind("<Configure>", self._fit)
+        self.bind("<Button-1>", self._copy)
+        self.tooltip = Tooltip(self, lambda: f"点击复制来源文件夹\n{self.full_path}" if self.full_path else "")
+
+    def set_path(self, path):
+        self.full_path = str(path) if path else ""
+        self._fit()
+
+    def _fit(self, _event=None):
+        text = "来源文件夹：" + self.full_path if self.full_path else "来源文件夹将在选择文件后显示"
+        font = tkfont.Font(font=self["font"])
+        width = max(40, self.winfo_width())
+        if font.measure(text) <= width:
+            self.configure(text=text)
+            return
+        low, high = 0, len(text)
+        candidate = "…"
+        while low <= high:
+            length = (low+high)//2
+            left, right = (length+1)//2, length//2
+            shortened = text[:left]+"…"+(text[-right:] if right else "")
+            if font.measure(shortened) <= width:
+                candidate = shortened
+                low = length+1
+            else:
+                high = length-1
+        self.configure(text=candidate)
+
+    def _copy(self, _event=None):
+        if self.full_path:
+            self.clipboard_clear()
+            self.clipboard_append(self.full_path)

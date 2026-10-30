@@ -12,6 +12,7 @@ from PIL import ImageGrab
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 from automated_gerber_compare.gui import App, SettingsDialog
+from automated_gerber_compare.dialogs import MessageWindow
 from automated_gerber_compare.settings import Settings
 from automated_gerber_compare.validation import prepare_comparison
 
@@ -55,7 +56,8 @@ def main():
                 path = root / f"Board_Rev_{side}.zip"
                 with zipfile.ZipFile(path, "w") as z:
                     for name in ["GF_Top_Layer.gdo", "GF_Bottom_Layer.gdo", "GF_Inner_1.gdo", "GF_Inner_2.gdo", "GF_Board_Outline.gdo", "GF_Solder_Mask_Top.gdo", "GF_Solder_Mask_Bottom.gdo"]:
-                        z.writestr("Gerber/" + name, gerber)
+                        content = gerber.replace("26Y26", "24Y24") if side == "B" and "Mask" in name else gerber
+                        z.writestr("Gerber/" + name, content)
                 paths.append(path)
             app.path_a.set(str(paths[0]))
             app.path_b.set(str(paths[1]))
@@ -70,6 +72,16 @@ def main():
                 capture(dialog, destination / "03-settings.png")
             finally:
                 dialog.destroy()
+            for name,title,message,confirm,kind in [
+                ("05-confirmation.png", "开始图形对比", "本次将比较 7 对图层，包含 2 项校验提醒。\n\n确认资料后，程序将连接 Valor 并生成带截图的报告。\n\n现在开始？", True, "info"),
+                ("06-layer-details.png", "阻焊 / 顶层", "A：Gerber/GF_Solder_Mask_Top.gdo\n\nB：Gerber/GF_Solder_Mask_Top.gdo\n\n校验提醒：\n两侧导入格式不同，将分别使用各自文件头参数；保持原坐标，不自动平移对齐。", False, "info"),
+                ("07-warning.png", "连接需要检查", "Valor 尚未连接。\n请检查本机连接状态或打开 Valor 设置。\n\n运行记录已保存在本次工作目录。", False, "warning"),
+            ]:
+                dialog = MessageWindow(app, title, message, confirm=confirm, kind=kind)
+                try:
+                    capture(dialog, destination/name)
+                finally:
+                    dialog.destroy()
         finally:
             app.destroy()
 

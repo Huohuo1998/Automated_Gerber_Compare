@@ -90,19 +90,23 @@ class RcomClient:
                                        stderr=subprocess.PIPE, shell=False, creationflags=flags,
                                        env=process_environment(self.settings))
             while True:
+                was_cancelled = self.cancel.is_set() and not ignore_cancel
+                remaining = limit - (time.monotonic() - started)
+                if was_cancelled or remaining <= 0:
+                    process.kill()
+                    stdout, stderr = process.communicate()
+                    returncode = process.returncode
+                    uncertain = True
+                    problem = "用户取消正在执行的命令" if was_cancelled else f"命令执行超过 {limit:g} 秒"
+                    break
                 try:
-                    stdout, stderr = process.communicate(timeout=0.1)
+                    # Five seconds is the normal wait interval, not the overall deadline.
+                    # Short readiness probes and the final interval use the time remaining.
+                    stdout, stderr = process.communicate(timeout=min(5.0, remaining))
                     returncode = process.returncode
                     break
                 except subprocess.TimeoutExpired:
-                    was_cancelled = self.cancel.is_set() and not ignore_cancel
-                    if was_cancelled or time.monotonic() - started >= limit:
-                        process.kill()
-                        stdout, stderr = process.communicate()
-                        returncode = process.returncode
-                        uncertain = True
-                        problem = "用户取消正在执行的命令" if was_cancelled else f"命令执行超过 {limit:g} 秒"
-                        break
+                    continue
         except OSError as exc:
             problem = f"无法启动 rcom：{exc}"
         out, err = decode_output(stdout).strip(), decode_output(stderr).strip()
